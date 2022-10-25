@@ -123,67 +123,47 @@ async fn document_producer_runtime(doc_stream: spsc_queue::Producer<TextSource>)
     }
 }
 
-async fn gen_queries() -> PersistentQuery {
-    let mock_query = corpora::gen_corpora_switch("fabric".to_string());
-    glommio::yield_if_needed().await;
-    PersistentQuery::new(mock_query)
+struct QueryShard {
+    id: u64,
+    inner: flashmap::ReadHandle<u64, PersistentQuery>,
+    engine: Searcher,
 }
 
-async fn indexing_runtime(
-    query_stream: spsc_queue::Consumer<PersistentQuery>,
-    doc_stream: spsc_queue::Consumer<TextSource>,
-) {
-    println!(
-        "Starting up resources on executor id: {}",
-        glommio::executor().id()
-    );
-    let search = search::Searcher::new();
-    let mut processor = QueryProcessor::new(query_stream, doc_stream);
-    let mut doc_result = Vec::with_capacity(5000);
-    loop {
-        //println!("Starting loop");
-        doc_result.clear();
-        processor.incoming_queries.try_pop().map(|q| {
-            println!(
-                "Found query and stored it - total query count: {}",
-                processor.queries.len()
-            );
-            processor.queries.store_query(q)
-        });
-
-        glommio::yield_if_needed().await;
-        if let Some(document) = processor.incoming_docs.try_pop() {
-            println!("found document {} and searched it", document.id);
-            doc_result = processor.run_queries(&search, document);
-        } else {
-            // println!("No doc in queue");
-            glommio::yield_if_needed().await;
-            continue;
-        };
-        doc_result.drain(0..).for_each(|index_data| {
-            println!("In drain proc");
-            processor.indices.store_index_data(index_data)
-        })
+impl QueryShard {
+    async fn search(&self, text: TextSource) -> Vec<IndexData> {
+        // Later, a stream of results?
+        self.inner
+            .guard()
+            .values()
+            .filter_map(|q| self.engine.search(q, &text))
+            .collect_vec()
     }
 }
 
-pub(crate) struct QueryProcessor {
-    queries: MetadataStorage,
-    indices: IndexStorage,
-    incoming_queries: spsc_queue::Consumer<PersistentQuery>,
-    incoming_docs: spsc_queue::Consumer<TextSource>,
-}
-
-impl QueryProcessor {
-    pub fn new(
-        query_stream: spsc_queue::Consumer<PersistentQuery>,
-        doc_stream: spsc_queue::Consumer<TextSource>,
-    ) -> Self {
-        Self {
-            queries: MetadataStorage::new(), // Read from disk, yeah I know
-            indices: IndexStorage::new(),    // Also read
-            incoming_queries: query_stream,
-            incoming_docs: doc_stream,
+async fn index_runtime(shard: QueryShard, mut text_recv: tachyonix::Receiver<TextSource>) {
+    loop {
+        if let Ok(doc) = text_recv.recv().await {
+            let mut search_results = shard.search(doc).await;
+            for index_data in search_results.drain(0..) {
+                glommio::spawn_local(async move {
+                    let path = format!(
+                        "/home/fridgeseal/Projects/Tarkine/output_data/{}_{}_{}.rkyv",
+                        shard.id, index_data.source_query, index_data.document_id
+                    );
+                    let output_path = Path::new(&path);
+                    let mut sink = glommio::io::ImmutableFileBuilder::new(output_path)
+                        .build_sink()
+                        .await
+                        .unwrap();
+                    let index_buffer = rkyv::to_bytes::<_, 1024>(&index_data).unwrap();
+                    sink.write(&index_buffer.as_slice())
+                        .await
+                        .expect("Couldn't write buffer");
+                    sink.seal().await.expect("Couldn't close seal");
+                    println!("Wrote to file!");
+                })
+                .await;
+            }
         }
     }
 
