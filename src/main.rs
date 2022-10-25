@@ -1,21 +1,19 @@
-use fakedata_generator::corpora;
-use futures_lite::io::AsyncReadExt;
+use futures_lite::{io::AsyncReadExt, AsyncWriteExt};
 use glommio::{
-    channels::spsc_queue,
     io::{DmaFile, DmaStreamReaderBuilder},
     LocalExecutorBuilder, Placement,
 };
 use itertools::Itertools;
 use queries::{IndexData, PersistentQuery};
 use search::{Searcher, TextSource};
-use std::{error, net::SocketAddr, str::FromStr};
+use std::{error, net::SocketAddr, path::Path};
+use tachyonix::{self};
+
 mod data_source;
 mod queries;
 mod search;
 mod server;
 mod storage;
-
-use storage::{IndexStorage, MetadataStorage};
 
 use crate::server::server_runtime;
 
@@ -23,23 +21,24 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     let core_count = std::thread::available_parallelism()?;
     dbg!(&core_count);
     let bind_addr = SocketAddr::from(([127, 0, 0, 1], 8765));
-    dbg!(&bind_addr);
-    let server_threads = std::thread::spawn(move || server_runtime(bind_addr));
-    let (q_producer, q_consumer) = spsc_queue::make(32);
-    let (doc_producer, doc_consumer) = spsc_queue::make(64);
+
+    let (mut write_map, read_map) = flashmap::with_capacity(1000);
+    let (mut send_chan, mut recv_chan) = tachyonix::channel(1024);
+
+    let server_threads =
+        std::thread::spawn(move || server_runtime(bind_addr, write_map, send_chan));
+    let shard1 = QueryShard {
+        id: rand::random(),
+        inner: read_map,
+        engine: Searcher::new(),
+    };
     let processor_thread = LocalExecutorBuilder::new(Placement::Fixed(1))
-        .spawn(|| indexing_runtime(q_consumer, doc_consumer))?;
-    let doc_queue_thread = LocalExecutorBuilder::new(Placement::Fixed(2))
-        .spawn(|| document_producer_runtime(doc_producer))?;
-    let query_queue_thread = LocalExecutorBuilder::new(Placement::Fixed(2))
-        .spawn(|| query_producer_runtime(q_producer))?;
+        .spawn(|| index_runtime(shard1, recv_chan))?;
 
     match server_threads.join() {
         Ok(_) => "Suceeded in doing stuff with sever threads?",
         Err(_) => "Did not succeed",
     };
-    doc_queue_thread.join()?;
-    query_queue_thread.join()?;
     processor_thread.join()?;
 
     Ok(())
@@ -53,38 +52,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     // })?;
 }
 
-async fn query_producer_runtime(query_stream: spsc_queue::Producer<PersistentQuery>) {
-    println!(
-        "starting query producer on executor id {}",
-        glommio::executor().id()
-    );
-    let query_texts = [
-        "Mr. Darcy",
-        "Cumberland",
-        "surgery",
-        "London",
-        "church service",
-        "silver har",
-        "the countryside",
-        "Project Gutenberg",
-        "egislation",
-        "limited warranty",
-        "I shall die",
-        "five thousand pounds",
-    ];
-    for query_text in query_texts {
-        let query = PersistentQuery::new(query_text);
-        println!(
-            "Generated query: {query:?} on executor: {}",
-            glommio::executor().id()
-        );
-        query_stream.try_push(query);
-        glommio::executor().yield_if_needed().await;
-        glommio::timer::sleep(std::time::Duration::from_millis(10)).await;
-    }
-}
-
-async fn document_producer_runtime(doc_stream: spsc_queue::Producer<TextSource>) {
+async fn document_producer_runtime(mut doc_stream: tachyonix::Sender<TextSource>) {
     println!(
         "starting document producer on executor id {}",
         glommio::executor().id()
@@ -102,7 +70,6 @@ async fn document_producer_runtime(doc_stream: spsc_queue::Producer<TextSource>)
             "submitting file from executor id: {}",
             glommio::executor().id()
         );
-        glommio::timer::sleep(std::time::Duration::from_millis(10)).await;
         let file = DmaFile::open(&filename.path())
             .await
             .expect("Couldn't open file: {file}");
@@ -165,12 +132,5 @@ async fn index_runtime(shard: QueryShard, mut text_recv: tachyonix::Receiver<Tex
                 .await;
             }
         }
-    }
-
-    pub fn run_queries(&self, s: &Searcher, document: TextSource) -> Vec<IndexData> {
-        self.queries
-            .list_queries()
-            .filter_map(|q| s.search(q, &document))
-            .collect_vec()
     }
 }

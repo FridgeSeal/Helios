@@ -1,6 +1,5 @@
-use std::{collections::HashMap, error};
-
 use crate::queries::{IndexData, PersistentQuery, PersistentQueryId};
+use std::collections::HashMap;
 
 pub(crate) struct Storage {}
 
@@ -10,14 +9,14 @@ impl Storage {
     }
 }
 
-#[derive(Debug)]
 pub(crate) struct MetadataStorage {
-    metadata: HashMap<PersistentQueryId, PersistentQuery>,
+    // metadata: flashmap::WriteHandle<PersistentQueryId, PersistentQuery>,
+    metadata: HashMap<u64, PersistentQuery>,
 }
 
 #[derive(Debug)]
 pub(crate) struct IndexStorage {
-    indexes: HashMap<PersistentQueryId, Vec<IndexData>>,
+    indexes: HashMap<u64, Vec<IndexData>>,
 }
 
 impl MetadataStorage {
@@ -26,17 +25,15 @@ impl MetadataStorage {
         // let metadata = db.open_tree("metadata")?;
         // let indexes = db.open_tree("data")?;
         let metadata = HashMap::with_capacity(1000);
-        // let indexes = HashMap::new();
         Self { metadata }
     }
 
-    pub fn store_query(&mut self, query: PersistentQuery) -> bool {
+    pub fn store_query(&mut self, query: PersistentQuery) {
         // let query_bytes = rkyv::to_bytes::<_, 1024>(&query)?;
         // let _ = self
         //     .metadata
         //     .insert(query.query_id.as_bytes(), query_bytes.as_slice())?;
         self.metadata.insert(query.id, query);
-        true
     }
 
     pub fn get_query(&self, key: PersistentQueryId) -> Option<&PersistentQuery> {
@@ -49,14 +46,13 @@ impl MetadataStorage {
     }
 
     pub fn list_queries(&self) -> impl Iterator<Item = &PersistentQuery> {
-        self.metadata.values().map(|x| x)
+        self.metadata.values()
     }
 
     pub fn len(&self) -> usize {
         self.metadata.len()
     }
 }
-
 impl IndexStorage {
     pub fn new() -> Self {
         // let db = sled::open(path)?;
@@ -67,7 +63,7 @@ impl IndexStorage {
         Self { indexes }
     }
 
-    pub fn store_index_data(&mut self, data: IndexData) {
+    pub async fn store_index_data(&mut self, data: IndexData) {
         // let key = data.source_query.id + self.db.generate_id()?;
         // let bytes = rkyv::to_bytes::<_, 1024>(data)?;
         // let _insert_result = self.indexes.insert(key, bytes.as_slice())?;
