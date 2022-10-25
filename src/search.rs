@@ -14,10 +14,11 @@ pub(crate) struct MatchInformation {
     positions: Vec<[usize; 2]>,
 }
 
-pub(crate) struct TextSource {
+#[derive(Debug, serde::Deserialize)]
+pub struct TextSource {
     pub(crate) id: u32,
     pub(crate) name: Option<String>,
-    data: String,
+    pub(crate) data: String,
     // Feature idea -
 }
 
@@ -26,7 +27,7 @@ impl TextSource {
         Self {
             id: rand::random(),
             data: text.to_string(),
-            name: text_name.into(),
+            name: text_name,
         }
     }
 
@@ -66,7 +67,7 @@ impl Searcher {
                     source_query: query.id,
                     name: text_src.name.clone(),
                     key: rand::random::<u32>().into(),
-                    document_id: text_src.id.into(),
+                    document_id: text_src.id,
                     match_indices: match_data.positions,
                     score: match_data.score,
                 }
@@ -75,7 +76,6 @@ impl Searcher {
 }
 
 fn get_contiguous(v: &[usize]) -> Vec<[usize; 2]> {
-    dbg!(&v);
     if v.len() < 2 {
         return Vec::new();
     }
@@ -101,7 +101,6 @@ fn get_contiguous(v: &[usize]) -> Vec<[usize; 2]> {
     }
     arr.push([*minimum, *maximum]);
     arr.shrink_to_fit();
-    dbg!(&arr);
     arr
 }
 

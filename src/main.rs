@@ -84,7 +84,7 @@ async fn document_producer_runtime(mut doc_stream: tachyonix::Sender<TextSource>
             .unwrap_or_default()
             .to_string();
         let doc = TextSource::new(str_buffer.clone(), Some(fname));
-        doc_stream.try_push(doc);
+        doc_stream.send(doc);
         str_buffer.clear();
         glommio::executor().yield_if_needed().await;
     }
