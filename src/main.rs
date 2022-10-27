@@ -36,10 +36,17 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         .spawn(|| index_runtime(shard1, recv_chan))?;
 
     match server_threads.join() {
-        Ok(_) => "Suceeded in doing stuff with sever threads?",
-        Err(_) => "Did not succeed",
+        Ok(_) => "Server thread has exited safely - shutting down",
+        Err(_) => "Server thread has crashed - restart application",
     };
     processor_thread.join()?;
+    /*
+    TODO: Proper handling and error messages for thread exits.
+    If we lose the server thread - do we drain the search threads and let the application exit?
+    or do we attempt to restart the server thread?
+    implement actual errors on the server and search threads too - if we lose a search thread, no point
+    attempting to resurrect it if there's larger issues (permissions, resource, etc) preventing successful operation
+    */
 
     Ok(())
     // Executor in current (in this case main) thread
