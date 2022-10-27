@@ -20,10 +20,13 @@ pub async fn http_server(
     let app = Router::new()
         .route("/", get(healthcheck))
         .route("/healthcheck", get(healthcheck))
-        .route("/query/get/:query_id", get({
-            let shared_state = Arc::clone(&state);
-            get_query(|path|, get_query( path, Arc::clone(&shared_state))
-        }))
+        .route(
+            "/query/get/:query_id",
+            get({
+                let shared_state = Arc::clone(&state);
+                move |query_id| get_query(query_id, Arc::clone(&shared_state))
+            }),
+        )
         .route(
             "/query/submit",
             post({
