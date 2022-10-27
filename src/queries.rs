@@ -1,19 +1,19 @@
 use bytecheck::CheckBytes;
 use rkyv::{Archive, Deserialize, Serialize};
-use typed_id::TypedId;
-pub(crate) type PersistentQueryId = TypedId<u64, PersistentQuery>;
-pub(crate) type IndexId = TypedId<u32, IndexData>;
+// use typed_id::TypedId;
+// pub(crate) type PersistentQueryId = TypedId<u64, PersistentQuery>;
+// pub(crate) type IndexId = TypedId<u32, IndexData>;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, serde::Serialize)]
 pub struct PersistentQuery {
-    pub query: String, // the query the user makes
+    pub query: String, // the query the user makes - later this should be a dedicated structure for more complex query types
     pub id: u64,       // prefix/namespace to store stuff in database
     pub score_threshold: i64,
     result_count: u32,
 }
 
 impl PersistentQuery {
-    pub fn _new_with_key(q: impl Into<String>, key: u64) -> Self {
+    pub fn new_with_key(q: impl Into<String>, key: u64) -> Self {
         Self {
             query: q.into(),
             id: key.into(),
@@ -30,13 +30,6 @@ impl PersistentQuery {
             result_count: 0,
         }
     }
-
-    // pub fn search(&self, data: &TextSource) -> Option<Vec<IndexData>> {
-    //     /// Given some `data`, if the data contains matches for the query,
-    //     /// produce a `TextCandidate` structure that will cause the data to be added to the
-    //     /// search results for that query
-    //     unimplemented!() // TODO
-    // }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Archive, Deserialize, Serialize)]
@@ -47,7 +40,7 @@ pub(crate) struct IndexData {
     pub key: u32,
     pub document_id: u32,
     pub name: Option<String>,
-    pub match_indices: Vec<[usize; 2]>, // not sure what we'd put here yet - snippet info?
+    pub match_indices: Vec<[usize; 2]>,
     pub score: i64,
 }
 
