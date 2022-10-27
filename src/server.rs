@@ -89,16 +89,16 @@ async fn submit_document(
     }
 }
 
-async fn get_query(query_id: u64, state: Arc<RwLock<State>>) -> Json<PersistentQuery> {
+async fn get_query(query_id: u64, state: Arc<RwLock<State>>) -> Json<Option<PersistentQuery>> {
     let mut state_guard = state.write().await;
     // A bit less than ideal, we own the write-half of the map, we can't get a non-mutable, non-blocking
     // view into it. It'll do for now.
     let query_guard = state_guard.query_map.guard();
     let query = match query_guard.get(&query_id) {
         Some(it) => it,
-        _ => return Json,
+        _ => return Json(None),
     };
-    Json(query.clone())
+    Json(Some(query.clone()))
 }
 async fn healthcheck() -> &'static str {
     "Healthy!"
