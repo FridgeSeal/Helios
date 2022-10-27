@@ -34,10 +34,13 @@ pub async fn http_server(
                 move |body| submit_query(body, Arc::clone(&shared_state))
             }),
         )
-        .route("/document/get", get({
-            let shared_state = Arc::clone(&state);
-            move |body| get_document(body, Arc::clone(&shared_state))
-        }))
+        .route(
+            "/query/get_results/:query_id",
+            get({
+                let shared_state = Arc::clone(&state);
+                move |body| get_query_results(body, Arc::clone(&shared_state))
+            }),
+        )
         .route(
             "/document/submit",
             post({
