@@ -60,7 +60,7 @@ pub async fn http_server(
 
 async fn submit_query(
     Json(payload): Json<SubmitQueryRequest>,
-    state: Arc<Mutex<State>>,
+    state: Arc<RwLock<State>>,
 ) -> Json<QuerySubmitResponse> {
     // Todo: separate out validation logic from actual path handler
     if !(!payload.query_string.is_empty() && payload.threshold > 0) {
@@ -69,7 +69,7 @@ async fn submit_query(
     // Additionally, the lock ownership section should be segmented into an outer and an inner function
     // in which the inner does not care about Mutex/Lock semantics
     let query: PersistentQuery = payload.into();
-    let mut state_lock = state.lock().await;
+    let mut state_lock = state.write().await;
     // We could make this lock-free if we implemented the poll-loop directly
     state_lock.query_map.guard().insert(query.id, query);
     Json(QuerySubmitResponse::succeeded())
