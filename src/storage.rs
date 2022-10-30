@@ -1,4 +1,4 @@
-use crate::queries::{IndexData, PersistentQuery, PersistentQueryId};
+use crate::queries::{IndexData, PersistentQuery};
 use std::collections::HashMap;
 
 pub(crate) struct Storage {}
@@ -36,7 +36,7 @@ impl MetadataStorage {
         self.metadata.insert(query.id, query);
     }
 
-    pub fn get_query(&self, key: PersistentQueryId) -> Option<&PersistentQuery> {
+    pub fn get_query(&self, key: u64) -> Option<&PersistentQuery> {
         // if let Ok(Some(query_buf)) = self.metadata.get(key) {
         //     rkyv::from_bytes::<PersistentQuery>(&query_buf).ok()
         // } else {
@@ -71,7 +71,7 @@ impl IndexStorage {
         index.and_modify(|f| f.push(data)).or_default();
     }
 
-    pub fn get_query_results(&self, query_id: PersistentQueryId) -> Option<&Vec<IndexData>> {
+    pub fn get_query_results(&self, query_id: u64) -> Option<&Vec<IndexData>> {
         self.indexes.get(&query_id)
     }
 }
