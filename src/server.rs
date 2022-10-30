@@ -1,4 +1,5 @@
 use axum::{
+    extract::{Extension, Path},
     routing::{get, post},
     Json, Router,
 };
@@ -8,7 +9,11 @@ use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, sync::Arc};
 use tokio::sync::RwLock;
 
-use crate::{queries::PersistentQuery, search::TextSource};
+use crate::{
+    errors::ApiError,
+    queries::{IndexData, PersistentQuery},
+    search::TextSource,
+};
 
 pub async fn http_server(
     addr: SocketAddr,
@@ -26,7 +31,7 @@ pub async fn http_server(
             "/query/get/:query_id",
             get({
                 let shared_state = Arc::clone(&state);
-                move |query_id| get_query(query_id, Arc::clone(&shared_state))
+                move |q_id| get_query(q_id, Arc::clone(&shared_state))
             }),
         )
         .route(

@@ -32,7 +32,7 @@ impl PersistentQuery {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Archive, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Archive, Deserialize, Serialize, serde::Serialize)]
 #[archive_attr(derive(CheckBytes, Debug))]
 pub(crate) struct IndexData {
     /// Contains all necessary information to add a document to a query's results
