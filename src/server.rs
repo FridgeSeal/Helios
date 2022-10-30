@@ -37,19 +37,13 @@ pub async fn http_server(
             }),
         )
         .route(
-            "/query/get_results/:query_id",
-            get({
-                let shared_state = Arc::clone(&state);
-                move |body| get_query_results(body, Arc::clone(&shared_state))
-            }),
-        )
-        .route(
             "/document/submit",
             post({
                 let shared_state = Arc::clone(&state);
                 move |body| submit_document(body, Arc::clone(&shared_state))
             }),
-        );
+        )
+        .route("/query/get_results/:query_id", get(get_query_results));
     println!("Starting server!");
     axum::Server::bind(&addr)
         .http1_only(false)
