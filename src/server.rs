@@ -2,6 +2,8 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+
+use futures::lock::Mutex;
 use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, sync::Arc};
 use tokio::sync::RwLock;
@@ -13,7 +15,7 @@ pub async fn http_server(
     query_map: flashmap::WriteHandle<u64, PersistentQuery>,
     doc_channel: tachyonix::Sender<TextSource>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let state = Arc::new(RwLock::new(State {
+    let state = Arc::new(Mutex::new(State {
         query_map,
         document_channel: doc_channel,
     }));
@@ -60,46 +62,51 @@ pub async fn http_server(
 
 async fn submit_query(
     Json(payload): Json<SubmitQueryRequest>,
-    state: Arc<RwLock<State>>,
-) -> Json<QuerySubmitResponse> {
+    state: Arc<Mutex<State>>,
+) -> Result<Json<QuerySubmitResponse>, ApiError> {
     // Todo: separate out validation logic from actual path handler
     if !(!payload.query_string.is_empty() && payload.threshold > 0) {
-        return Json(QuerySubmitResponse::failed());
+        return Err(ApiError::QuerySubmission);
     }
     // Additionally, the lock ownership section should be segmented into an outer and an inner function
     // in which the inner does not care about Mutex/Lock semantics
     let query: PersistentQuery = payload.into();
-    let mut state_lock = state.write().await;
+    let mut state_lock = state.lock().await;
     // We could make this lock-free if we implemented the poll-loop directly
     state_lock.query_map.guard().insert(query.id, query);
-    Json(QuerySubmitResponse::succeeded())
+    Ok(Json(QuerySubmitResponse::succeeded()))
 }
 
 async fn submit_document(
     Json(text_payload): Json<TextSource>,
-    state: Arc<RwLock<State>>,
-) -> Json<DocumentSubmissionResult> {
+    state: Arc<Mutex<State>>,
+) -> Result<Json<DocumentSubmissionResult>, ApiError> {
     if text_payload.data.is_empty() {
-        return Json(DocumentSubmissionResult { successful: false });
+        return Err(ApiError::DocSubmission);
     }
-    let mut state_lock = state.write().await;
-    match state_lock.document_channel.send(text_payload).await {
-        Ok(_) => Json(DocumentSubmissionResult { successful: true }),
-        Err(_) => Json(DocumentSubmissionResult { successful: false }),
-    }
+    let mut state_lock = state.lock().await;
+    state_lock.document_channel.send(text_payload).await?;
+    Ok(Json(DocumentSubmissionResult { successful: true }))
 }
 
-async fn get_query(query_id: u64, state: Arc<RwLock<State>>) -> Json<Option<PersistentQuery>> {
-    let mut state_guard = state.write().await;
+async fn get_query(
+    Path(query_id): Path<u64>,
+    state: Arc<Mutex<State>>,
+) -> Result<Json<PersistentQuery>, ApiError> {
+    let mut state_guard = state.lock().await;
     // A bit less than ideal, we own the write-half of the map, we can't get a non-mutable, non-blocking
     // view into it. It'll do for now.
     let query_guard = state_guard.query_map.guard();
-    let query = match query_guard.get(&query_id) {
-        Some(it) => it,
-        _ => return Json(None),
-    };
-    Json(Some(query.clone()))
+    query_guard
+        .get(&query_id)
+        .map(|x| Json(x.to_owned()))
+        .ok_or(ApiError::NonExistentId)
 }
+
+async fn get_query_results(Path(query_id): Path<u64>) -> Result<Json<Vec<IndexData>>, ApiError> {
+    Ok(Json(Vec::new()))
+}
+
 async fn healthcheck() -> &'static str {
     "Healthy!"
 }
