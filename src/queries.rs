@@ -1,8 +1,5 @@
 use bytecheck::CheckBytes;
 use rkyv::{Archive, Deserialize, Serialize};
-// use typed_id::TypedId;
-// pub(crate) type PersistentQueryId = TypedId<u64, PersistentQuery>;
-// pub(crate) type IndexId = TypedId<u32, IndexData>;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, serde::Serialize)]
 pub struct PersistentQuery {
@@ -13,19 +10,10 @@ pub struct PersistentQuery {
 }
 
 impl PersistentQuery {
-    pub fn new_with_key(q: impl Into<String>, key: u64) -> Self {
-        Self {
-            query: q.into(),
-            id: key.into(),
-            result_count: 0,
-            score_threshold: 0,
-        }
-    }
-
     pub fn new(q: impl Into<String>, threshold: i64) -> Self {
         Self {
             query: q.into(),
-            id: rand::random::<u64>().into(),
+            id: rand::random::<u64>(),
             score_threshold: threshold, // Need a good way of refining this
             result_count: 0,
         }

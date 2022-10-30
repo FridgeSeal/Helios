@@ -66,7 +66,7 @@ impl Searcher {
                 IndexData {
                     source_query: query.id,
                     name: text_src.name.clone(),
-                    key: rand::random::<u32>().into(),
+                    key: rand::random::<u32>(),
                     document_id: text_src.id,
                     match_indices: match_data.positions,
                     score: match_data.score,

@@ -46,7 +46,7 @@ async fn submit_query(
     Extension(state): Extension<Arc<Mutex<State>>>,
 ) -> Result<Json<QuerySubmitResponse>, ApiError> {
     // Todo: separate out validation logic from actual path handler
-    if !(!payload.query_string.is_empty() && payload.threshold > 0) {
+    if !(payload.query_string.is_empty() || payload.threshold <= 0) {
         return Err(ApiError::QuerySubmission);
     }
     // Additionally, the lock ownership section should be segmented into an outer and an inner function
@@ -135,9 +135,6 @@ struct QuerySubmitResponse {
 impl QuerySubmitResponse {
     fn succeeded() -> Self {
         Self { successful: true }
-    }
-    fn failed() -> Self {
-        Self { successful: false }
     }
 }
 

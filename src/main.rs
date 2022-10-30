@@ -1,8 +1,5 @@
-use futures_lite::{io::AsyncReadExt, AsyncWriteExt};
-use glommio::{
-    io::{DmaFile, DmaStreamReaderBuilder},
-    LocalExecutorBuilder, Placement,
-};
+use futures_lite::AsyncWriteExt;
+use glommio::{LocalExecutorBuilder, Placement};
 use itertools::Itertools;
 use queries::{IndexData, PersistentQuery};
 use search::{Searcher, TextSource};
@@ -23,8 +20,8 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     dbg!(&core_count);
     let bind_addr = SocketAddr::from(([127, 0, 0, 1], 8765));
 
-    let (mut write_map, read_map) = flashmap::with_capacity(1000);
-    let (mut send_chan, mut recv_chan) = tachyonix::channel(1024);
+    let (write_map, read_map) = flashmap::with_capacity(1000);
+    let (send_chan, recv_chan) = tachyonix::channel(1024);
 
     let server_threads =
         std::thread::spawn(move || server_runtime(bind_addr, write_map, send_chan));
@@ -60,44 +57,6 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     // })?;
 }
 
-async fn document_producer_runtime(mut doc_stream: tachyonix::Sender<TextSource>) {
-    println!(
-        "starting document producer on executor id {}",
-        glommio::executor().id()
-    );
-    let scan_dir = glommio::io::Directory::open("/home/fridgeseal/Projects/shards/data")
-        .await
-        .expect("Couldn't open directory");
-    let dir_contents = scan_dir
-        .sync_read_dir()
-        .expect("Couldn't read into directory")
-        .filter_map(Result::ok);
-    let mut str_buffer = String::with_capacity(10000);
-    for filename in dir_contents {
-        println!(
-            "submitting file from executor id: {}",
-            glommio::executor().id()
-        );
-        let file = DmaFile::open(&filename.path())
-            .await
-            .expect("Couldn't open file: {file}");
-        let mut reader = DmaStreamReaderBuilder::new(file).build();
-        let _ = reader
-            .read_to_string(&mut str_buffer)
-            .await
-            .expect("Couldn't read file");
-        let fname = filename
-            .file_name()
-            .to_str()
-            .unwrap_or_default()
-            .to_string();
-        let doc = TextSource::new(str_buffer.clone(), Some(fname));
-        doc_stream.send(doc);
-        str_buffer.clear();
-        glommio::executor().yield_if_needed().await;
-    }
-}
-
 struct QueryShard {
     id: u64,
     inner: flashmap::ReadHandle<u64, PersistentQuery>,
@@ -131,7 +90,7 @@ async fn index_runtime(shard: QueryShard, mut text_recv: tachyonix::Receiver<Tex
                         .await
                         .unwrap();
                     let index_buffer = rkyv::to_bytes::<_, 1024>(&index_data).unwrap();
-                    sink.write(&index_buffer.as_slice())
+                    sink.write(index_buffer.as_slice())
                         .await
                         .expect("Couldn't write buffer");
                     sink.seal().await.expect("Couldn't close seal");
