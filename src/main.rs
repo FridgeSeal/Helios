@@ -10,6 +10,7 @@ use std::{error, net::SocketAddr, path::Path};
 use tachyonix::{self};
 
 mod data_source;
+mod errors;
 mod queries;
 mod search;
 mod server;
