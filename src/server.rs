@@ -7,7 +7,6 @@ use axum::{
 use futures::lock::Mutex;
 use serde::{Deserialize, Serialize};
 use std::{net::SocketAddr, sync::Arc};
-use tokio::sync::RwLock;
 
 use crate::{
     errors::ApiError,
@@ -27,28 +26,11 @@ pub async fn http_server(
     let app = Router::new()
         .route("/", get(healthcheck))
         .route("/healthcheck", get(healthcheck))
-        .route(
-            "/query/get/:query_id",
-            get({
-                let shared_state = Arc::clone(&state);
-                move |q_id| get_query(q_id, Arc::clone(&shared_state))
-            }),
-        )
-        .route(
-            "/query/submit",
-            post({
-                let shared_state = Arc::clone(&state);
-                move |body| submit_query(body, Arc::clone(&shared_state))
-            }),
-        )
-        .route(
-            "/document/submit",
-            post({
-                let shared_state = Arc::clone(&state);
-                move |body| submit_document(body, Arc::clone(&shared_state))
-            }),
-        )
-        .route("/query/get_results/:query_id", get(get_query_results));
+        .route("/query/get/:query_id", get(get_query))
+        .route("/query/submit", post(submit_query))
+        .route("/document/submit", post(submit_document))
+        .route("/query/get_results/:query_id", get(get_query_results))
+        .layer(Extension(state));
     println!("Starting server!");
     axum::Server::bind(&addr)
         .http1_only(false)
@@ -61,7 +43,7 @@ pub async fn http_server(
 
 async fn submit_query(
     Json(payload): Json<SubmitQueryRequest>,
-    state: Arc<Mutex<State>>,
+    Extension(state): Extension<Arc<Mutex<State>>>,
 ) -> Result<Json<QuerySubmitResponse>, ApiError> {
     // Todo: separate out validation logic from actual path handler
     if !(!payload.query_string.is_empty() && payload.threshold > 0) {
@@ -78,7 +60,7 @@ async fn submit_query(
 
 async fn submit_document(
     Json(text_payload): Json<TextSource>,
-    state: Arc<Mutex<State>>,
+    Extension(state): Extension<Arc<Mutex<State>>>,
 ) -> Result<Json<DocumentSubmissionResult>, ApiError> {
     if text_payload.data.is_empty() {
         return Err(ApiError::DocSubmission);
@@ -90,7 +72,7 @@ async fn submit_document(
 
 async fn get_query(
     Path(query_id): Path<u64>,
-    state: Arc<Mutex<State>>,
+    Extension(state): Extension<Arc<Mutex<State>>>,
 ) -> Result<Json<PersistentQuery>, ApiError> {
     let mut state_guard = state.lock().await;
     // A bit less than ideal, we own the write-half of the map, we can't get a non-mutable, non-blocking
