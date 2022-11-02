@@ -29,7 +29,7 @@ pub(crate) struct IndexData {
     pub source_query: u64,
     pub key: u64,
     pub document_id: u64,
-    pub name: Option<String>,
+    pub name: String,
     pub match_indices: Vec<[usize; 2]>,
     pub score: i64,
 }
