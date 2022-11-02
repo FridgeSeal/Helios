@@ -1,5 +1,6 @@
 use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
+use tracing::{event, Level};
 
 use crate::queries::{IndexData, PersistentQuery};
 
@@ -17,13 +18,13 @@ pub(crate) struct MatchInformation {
 #[derive(Debug, serde::Deserialize)]
 pub struct TextSource {
     pub(crate) id: u64,
-    pub(crate) name: Option<String>,
+    pub(crate) name: String,
     pub(crate) data: String,
     // Feature idea -
 }
 
 impl TextSource {
-    pub(crate) fn new(text: impl ToString, text_name: Option<String>) -> Self {
+    pub(crate) fn new(text: impl ToString, text_name: String) -> Self {
         Self {
             id: rand::random(),
             data: text.to_string(),
@@ -62,7 +63,7 @@ impl Searcher {
         self.search_raw(&query.query, &text_src.data)
             .filter(|match_info| match_info.score >= query.score_threshold)
             .map(|match_data| {
-                println!("Running search on id: {} text: {}", query.id, query.query);
+                event!(Level::INFO, message="Running search on text", query.id, query.query);
                 IndexData {
                     source_query: query.id,
                     name: text_src.name.clone(),
