@@ -6,6 +6,10 @@ use axum::{
 
 use futures::lock::Mutex;
 use serde::{Deserialize, Serialize};
+use tracing::{Span, event, Level};
+use tower_http::trace::TraceLayer;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
 use std::{net::SocketAddr, sync::Arc};
 
 use crate::{
@@ -30,8 +34,9 @@ pub async fn http_server(
         .route("/query/submit", post(submit_query))
         .route("/document/submit", post(submit_document))
         .route("/query/get_results/:query_id", get(get_query_results))
+        .layer(TraceLayer::new_for_http())
         .layer(Extension(state));
-    println!("Starting server!");
+    event!(Level::INFO, message="Starting to listen", ?addr);
     axum::Server::bind(&addr)
         .http1_only(false)
         .http2_only(true)
@@ -46,7 +51,8 @@ async fn submit_query(
     Extension(state): Extension<Arc<Mutex<State>>>,
 ) -> Result<Json<QuerySubmitResponse>, ApiError> {
     // Todo: separate out validation logic from actual path handler
-    if !(payload.query_string.is_empty() || payload.threshold <= 0) {
+    if payload.query_string.is_empty() || payload.threshold <= 0 {
+        dbg!(payload);
         return Err(ApiError::QuerySubmission);
     }
     // Additionally, the lock ownership section should be segmented into an outer and an inner function
@@ -102,8 +108,6 @@ pub fn server_runtime(
     query_map: flashmap::WriteHandle<u64, PersistentQuery>,
     doc_channel: tachyonix::Sender<TextSource>,
 ) {
-    println!("Starting server runtime");
-
     let runtime = tokio::runtime::Builder::new_current_thread()
         .worker_threads(1)
         .enable_io()
@@ -117,13 +121,15 @@ pub fn server_runtime(
 
 #[derive(Debug, Deserialize)]
 struct SubmitQueryRequest {
+    id: u64,
+    name: String,
     query_string: String,
     threshold: i64,
 }
 
 impl From<SubmitQueryRequest> for crate::PersistentQuery {
     fn from(src: SubmitQueryRequest) -> Self {
-        PersistentQuery::new(src.query_string, src.threshold)
+        PersistentQuery::new(src.id, src.name, src.query_string, src.threshold)
     }
 }
 
