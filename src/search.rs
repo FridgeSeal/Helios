@@ -16,7 +16,7 @@ pub(crate) struct MatchInformation {
 
 #[derive(Debug, serde::Deserialize)]
 pub struct TextSource {
-    pub(crate) id: u32,
+    pub(crate) id: u64,
     pub(crate) name: Option<String>,
     pub(crate) data: String,
     // Feature idea -
@@ -66,7 +66,7 @@ impl Searcher {
                 IndexData {
                     source_query: query.id,
                     name: text_src.name.clone(),
-                    key: rand::random::<u32>(),
+                    key: rand::random::<u64>(),
                     document_id: text_src.id,
                     match_indices: match_data.positions,
                     score: match_data.score,
