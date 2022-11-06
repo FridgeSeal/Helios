@@ -12,7 +12,7 @@ readme = "readme.md"
 bytecheck = { version = "0.6.9", features = ["uuid"] }
 chrono = { version = "0.4.22", features = ["serde"] }
 fst = { version = "0.4.7", features = ["levenshtein"] }
-futures = "0.3.24"
+futures = "0.3.25"
 futures-lite = "1.12.0"
 fuzzy-matcher = "0.3.7"
 glommio = "0.7.0"
@@ -24,15 +24,29 @@ smartstring = "1.0.1"
 unicode-segmentation = "1.10.0"
 url = { version = "2.3.1", features = ["serde"] }
 # uuid = { version = "1.1.2", features = ["zerocopy", "v4", "v5", "serde"] }
-xxhash-rust = { version = "0.8.5", features = ["xxh3"] }
+xxhash-rust = { version = "0.8.6", features = ["xxh3"] }
 tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread", "net", "tracing"] }
-axum = { version = "0.5.16", default-features = false, features = ["http1", "json", "http2", "macros", "matched-path", "tower-log"] }
-serde = { version = "1.0.145", features = ["derive"] }
-serde_json = "1.0.86"
+axum = { version = "0.5.17", default-features = false, features = ["http1", "json", "http2", "macros", "matched-path", "tower-log"] }
+serde = { version = "1.0.147", features = ["derive"] }
+serde_json = "1.0.87"
 flashmap = "0.1.0"
-tachyonix = "0.1.1"
+tachyonix = "0.2"
 thiserror = "1.0.37"
-tower-http = { version = "0.3.0", features = ["trace"] }
+tower-http = { version = "0.3.4", features = ["trace"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2.2"
+tarpc = { version = "0.31.0", features = ["tokio1", "tcp", "serde-transport", "serde-transport-bincode"] }
+anyhow = "1.0.66"
+
+[lib]
+name = "lib"
+path = "src/lib.rs"
+
+[[bin]]
+name = "tarkine"
+path = "src/main.rs"
+
+[[bin]]
+name = "splinter"
+path = "src/client.rs"
