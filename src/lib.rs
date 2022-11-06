@@ -1,7 +1,5 @@
-// use crate::{errors::ApiError, search::TextSource};
-
 use bytecheck::CheckBytes;
-use rkyv::{validation::CheckTypeError, Archive, Deserialize, Serialize};
+use rkyv::{Archive, Deserialize, Serialize};
 
 use thiserror::Error;
 use tracing_subscriber::prelude::*;
@@ -20,8 +18,7 @@ pub trait Splinter {
 pub fn init_tracing(service_name: &str) -> anyhow::Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG")
-                .unwrap_or_else(|_| format!("{service_name}=debug,tower_http=debug")),
+            std::env::var("RUST_LOG").unwrap_or_else(|_| format!("{service_name}=debug")),
         ))
         .with(tracing_subscriber::fmt::layer())
         .init();

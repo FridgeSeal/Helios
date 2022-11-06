@@ -6,6 +6,7 @@ authors = ["Tom Watson"]
 repository = "https://github.com/fridgeseal/tarkine"
 description = "An experimental foray into 'percolation query' style text search and thread-per-core architecture "
 readme = "readme.md"
+default-run = "tarkine"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -48,5 +49,5 @@ name = "tarkine"
 path = "src/main.rs"
 
 [[bin]]
-name = "splinter"
+name = "client"
 path = "src/client.rs"

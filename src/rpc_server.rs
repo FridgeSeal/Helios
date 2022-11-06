@@ -39,7 +39,7 @@ impl Server {
 
 #[tarpc::server]
 impl Splinter for Server {
-    #[instrument]
+    #[instrument(skip(self))]
     async fn hello(self, _: context::Context, name: String) -> String {
         tracing::info!(message = "Responding to hello call", method = "hello");
         let sleep_time =
@@ -51,10 +51,12 @@ impl Splinter for Server {
         )
     }
 
+    #[instrument]
     async fn healthcheck(self, _: context::Context) -> String {
         "(づ｡◕‿‿◕｡)づ  H E A L T H Y !".to_string()
     }
 
+    #[instrument]
     async fn peer_health_capacity(self, _: context::Context) -> lib::LoadCapacityData {
         lib::LoadCapacityData {
             conn_count: 1,
@@ -62,6 +64,7 @@ impl Splinter for Server {
         }
     }
 
+    #[instrument]
     async fn get_query(
         self,
         _: context::Context,
@@ -92,6 +95,7 @@ impl Splinter for Server {
     }
 }
 
+#[instrument]
 async fn rpc_server(
     addr: SocketAddr,
     db_path: PathBuf,
@@ -123,6 +127,7 @@ async fn rpc_server(
     Ok(())
 }
 
+#[instrument]
 pub fn server_runtime(
     addr: SocketAddr,
     db_path: PathBuf,
@@ -131,6 +136,7 @@ pub fn server_runtime(
     let runtime = tokio::runtime::Builder::new_current_thread()
         .worker_threads(1)
         .enable_io()
+        .enable_time()
         .thread_name("http server")
         .build()
         .expect("Couldn't build server");
