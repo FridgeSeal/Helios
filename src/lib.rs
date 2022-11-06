@@ -12,6 +12,8 @@ pub trait Splinter {
     async fn peer_health_capacity() -> LoadCapacityData;
     async fn get_query(query_id: u64) -> PersistentQuery;
     async fn submit_query(query: PersistentQuery);
+    async fn submit_document(document: TextSource);
+    async fn get_results(query_id: u64) -> Vec<IndexData>;
 }
 
 pub fn init_tracing(service_name: &str) -> anyhow::Result<()> {
@@ -52,7 +54,17 @@ impl PersistentQuery {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Archive, Deserialize, Serialize, serde::Serialize)]
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Archive,
+    Deserialize,
+    Serialize,
+    serde::Serialize,
+    serde::Deserialize,
+)]
 #[archive_attr(derive(CheckBytes, Debug))]
 pub struct IndexData {
     /// Contains all necessary information to add a document to a query's results
@@ -68,4 +80,24 @@ pub struct IndexData {
 pub(crate) struct MatchData {
     snippet: String,
     score: u32,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct TextSource {
+    pub id: u64,
+    pub name: String,
+    pub data: String,
+    // Feature idea -
+}
+
+impl TextSource {
+    pub fn new(text: impl ToString, text_name: String) -> Self {
+        Self {
+            id: rand::random(),
+            data: text.to_string(),
+            name: text_name,
+        }
+    }
+
+    // Lazy loading from supported sources, etc
 }

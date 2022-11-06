@@ -67,6 +67,14 @@ impl Splinter for Server {
     async fn submit_query(self, _: context::Context, query: PersistentQuery) {
         unimplemented!() // TODO
     }
+
+    async fn submit_document(self, _: context::Context, document: TextSource) {
+        unimplemented!() // TODO
+    }
+
+    async fn get_results(self, _: context::Context, query_id: u64) -> Vec<IndexData> {
+        unimplemented!() // TODO
+    }
 }
 
 async fn rpc_server(
