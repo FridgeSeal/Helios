@@ -28,10 +28,8 @@ xxhash-rust = { version = "0.8.5", features = ["xxh3"] }
 tokio = { version = "1.21.2", features = ["macros", "rt-multi-thread", "net", "tracing"] }
 axum = { version = "0.5.16", default-features = false, features = ["http1", "json", "http2", "macros", "matched-path", "tower-log"] }
 serde = { version = "1.0.145", features = ["derive"] }
-flume = "0.10.14"
 serde_json = "1.0.86"
 flashmap = "0.1.0"
-flurry = "0.4.0"
 tachyonix = "0.1.1"
 thiserror = "1.0.37"
 tower-http = { version = "0.3.0", features = ["trace"] }
