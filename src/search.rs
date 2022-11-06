@@ -2,7 +2,7 @@ use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use tracing::{event, Level};
 
-use crate::queries::{IndexData, PersistentQuery};
+use lib::{IndexData, PersistentQuery};
 
 pub(crate) struct Searcher {
     matcher: SkimMatcherV2,
@@ -63,7 +63,12 @@ impl Searcher {
         self.search_raw(&query.query, &text_src.data)
             .filter(|match_info| match_info.score >= query.score_threshold)
             .map(|match_data| {
-                event!(Level::INFO, message="Running search on text", query.id, query.query);
+                event!(
+                    Level::INFO,
+                    message = "Running search on text",
+                    query.id,
+                    query.query
+                );
                 IndexData {
                     source_query: query.id,
                     name: text_src.name.clone(),

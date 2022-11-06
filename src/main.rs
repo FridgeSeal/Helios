@@ -1,26 +1,24 @@
 use futures_lite::AsyncWriteExt;
 use glommio::{LocalExecutorBuilder, Placement, io::DmaStreamWriterBuilder, defer};
 use itertools::Itertools;
-use queries::{IndexData, PersistentQuery};
+use lib::{IndexData, PersistentQuery};
 use search::{Searcher, TextSource};
 use tracing::{Level, event};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use std::{error, net::SocketAddr, path::{PathBuf}};
-use tachyonix;
 
 mod data_source;
 mod errors;
-mod queries;
 mod search;
-mod server;
-mod storage;
+mod rpc_server;
 
-use crate::server::server_runtime;
+use crate::rpc_server::server_runtime;
 
 const DATA_PATH: &str = "output_data";
 
 fn main() -> Result<(), Box<dyn error::Error>> {
+    let db_path = PathBuf::from("splinter.data");
     tracing_subscriber::registry()
     .with(tracing_subscriber::EnvFilter::new(
         std::env::var("RUST_LOG")
@@ -32,13 +30,12 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     event!(Level::INFO, core_count);
     let bind_addr = SocketAddr::from(([127, 0, 0, 1], 8766));
 
-    let (write_map, read_map) = flashmap::with_capacity(1000);
+    let (_write_map, read_map) = flashmap::with_capacity(1000);
     let (send_chan, recv_chan) = tachyonix::channel(1024);
     event!(Level::INFO, message="Starting API server thread");
     let server_threads =
-        std::thread::spawn(move || server_runtime(bind_addr, write_map, send_chan));
+        std::thread::spawn(move || server_runtime(bind_addr, db_path, send_chan));
         let shard1 = QueryShard {
-            id: rand::random(),
             inner: read_map,
             engine: Searcher::new(),
         };
@@ -71,7 +68,6 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 }
 
 struct QueryShard {
-    id: u64,
     inner: flashmap::ReadHandle<u64, PersistentQuery>,
     engine: Searcher,
 }

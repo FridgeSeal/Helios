@@ -6,9 +6,8 @@ use axum::{
 
 use futures::lock::Mutex;
 use serde::{Deserialize, Serialize};
-use tracing::{Span, event, Level};
 use tower_http::trace::TraceLayer;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing::{event, Level};
 
 use std::{net::SocketAddr, sync::Arc};
 
@@ -36,7 +35,7 @@ pub async fn http_server(
         .route("/query/get_results/:query_id", get(get_query_results))
         .layer(TraceLayer::new_for_http())
         .layer(Extension(state));
-    event!(Level::INFO, message="Starting to listen", ?addr);
+    event!(Level::INFO, message = "Starting to listen", ?addr);
     axum::Server::bind(&addr)
         .http1_only(false)
         .http2_only(true)
@@ -71,7 +70,7 @@ async fn submit_document(
     if text_payload.data.is_empty() {
         return Err(ApiError::DocSubmission);
     }
-    let mut state_lock = state.lock().await;
+    let state_lock = state.lock().await;
     state_lock.document_channel.send(text_payload).await?;
     Ok(Json(DocumentSubmissionResult { successful: true }))
 }
