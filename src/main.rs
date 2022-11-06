@@ -1,8 +1,8 @@
 use futures_lite::AsyncWriteExt;
 use glommio::{LocalExecutorBuilder, Placement, io::DmaStreamWriterBuilder, defer};
 use itertools::Itertools;
-use lib::{IndexData, PersistentQuery};
-use search::{Searcher, TextSource};
+use lib::{IndexData, PersistentQuery, TextSource};
+use search::Searcher;
 use tracing::{Level, event};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 

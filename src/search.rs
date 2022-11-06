@@ -2,7 +2,7 @@ use fuzzy_matcher::skim::SkimMatcherV2;
 use fuzzy_matcher::FuzzyMatcher;
 use tracing::{event, Level};
 
-use lib::{IndexData, PersistentQuery};
+use lib::{IndexData, PersistentQuery, TextSource};
 
 pub(crate) struct Searcher {
     matcher: SkimMatcherV2,
@@ -13,26 +13,6 @@ pub(crate) struct MatchInformation {
     raw_text: String,
     score: i64,
     positions: Vec<[usize; 2]>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-pub struct TextSource {
-    pub(crate) id: u64,
-    pub(crate) name: String,
-    pub(crate) data: String,
-    // Feature idea -
-}
-
-impl TextSource {
-    pub(crate) fn new(text: impl ToString, text_name: String) -> Self {
-        Self {
-            id: rand::random(),
-            data: text.to_string(),
-            name: text_name,
-        }
-    }
-
-    // Lazy loading from supported sources, etc
 }
 
 impl Searcher {

@@ -1,7 +1,5 @@
-use crate::search::TextSource;
-
 use futures::{self, StreamExt};
-use lib::{PersistentQuery, Splinter};
+use lib::{IndexData, PersistentQuery, Splinter, TextSource};
 use rand::{
     distributions::{Distribution, Uniform},
     thread_rng,
