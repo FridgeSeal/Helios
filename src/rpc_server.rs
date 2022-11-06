@@ -1,5 +1,5 @@
 use futures::{self, StreamExt};
-use lib::{IndexData, PersistentQuery, Splinter, TextSource};
+use lib::{IndexData, PersistentQuery, Splinter, TarkineError, TextSource};
 use rand::{
     distributions::{Distribution, Uniform},
     thread_rng,
@@ -11,6 +11,7 @@ use tarpc::{
     tokio_serde::formats::Bincode,
 };
 use tokio::time;
+use tracing::instrument;
 
 #[derive(Debug, Clone)]
 struct Server {
@@ -24,6 +25,7 @@ impl Server {
         doc_channel: tachyonix::Sender<TextSource>,
         path: PathBuf,
     ) -> Result<Self, sled::Error> {
+        tracing::info!(message="Starting RPC server state", database_path=?path);
         let db_cfg = sled::Config::default().use_compression(true).path(path);
         let db = db_cfg.open()?;
         let tree = db.open_tree("queries")?;
@@ -37,7 +39,9 @@ impl Server {
 
 #[tarpc::server]
 impl Splinter for Server {
+    #[instrument]
     async fn hello(self, _: context::Context, name: String) -> String {
+        tracing::info!(message = "Responding to hello call", method = "hello");
         let sleep_time =
             Duration::from_millis(Uniform::new_inclusive(1, 10).sample(&mut thread_rng()));
         time::sleep(sleep_time).await;
@@ -58,8 +62,21 @@ impl Splinter for Server {
         }
     }
 
-    async fn get_query(self, _: context::Context, query_id: u64) -> PersistentQuery {
-        unimplemented!() // TODO
+    async fn get_query(
+        self,
+        _: context::Context,
+        query_id: u64,
+    ) -> Result<PersistentQuery, TarkineError> {
+        use rkyv::Deserialize;
+        let Some(mut raw_query) = self.query_map.get(query_id.to_ne_bytes())? else {return Err(TarkineError::Id)};
+        let archived =
+            rkyv::check_archived_root::<PersistentQuery>(raw_query.as_mut()).map_err(|e| {
+                tracing::error!(message = "Failed to deserialise rkyv bytes", underlying_error=?e);
+                TarkineError::Parsing
+            })?;
+        archived
+            .deserialize(&mut rkyv::Infallible)
+            .map_err(|_e| TarkineError::Parsing)
     }
 
     async fn submit_query(self, _: context::Context, query: PersistentQuery) {
