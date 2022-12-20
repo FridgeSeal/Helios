@@ -20,7 +20,6 @@ async fn main() -> anyhow::Result<()> {
     let client = SplinterClient::new(client::Config::default(), transport.await?).spawn();
 
     let hello = async move {
-        // Send the request twice, just to be safe! ;)
         tokio::select! {
             hello1 = client.hello(context::current(), format!("{}1", "Tom")) => { hello1 }
             hello2 = client.hello(context::current(), format!("{}2", "Astra")) => { hello2 }
